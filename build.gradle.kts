@@ -1,6 +1,8 @@
 plugins {
     kotlin("jvm") version "1.8.21"
     kotlin("plugin.serialization") version "1.8.21"
+    application
+    id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
 group = "cc.tietz"
@@ -32,4 +34,8 @@ tasks.test {
 
 kotlin {
     jvmToolchain(11)
+}
+
+application {
+    mainClass.set("cc.tietz.fancontrolbackend.MainKt")
 }
