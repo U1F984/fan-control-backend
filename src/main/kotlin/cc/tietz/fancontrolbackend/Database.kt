@@ -12,7 +12,7 @@ import org.jooq.impl.DSL
 import java.time.Instant
 
 object Database {
-    suspend fun <T> transaction(fn: (DSLContext) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> transaction(fn: (DSLContext) -> T): T = withContext(Dispatchers.IO) {
         DSL.using("jdbc:sqlite:db.sqlite").use { ctx ->
             ctx.transactionResult(TransactionalCallable { fn(ctx) })
         }
@@ -31,11 +31,22 @@ object Database {
                 ctx.execute(
                     """
                         CREATE TABLE IF NOT EXISTS outdoor_measurement (
-                            time INT NOT NULL,
+                            time BIGINT NOT NULL,
                             temperature REAL NOT NULL,
                             rel_humidity INT NOT NULL,
                             PRIMARY KEY (time)
                         );
+                    """.trimIndent()
+                )
+                ctx.execute(
+                    """
+                        CREATE TABLE IF NOT EXISTS indoor_measurement (
+                            time BIGINT NOT NULL,
+                            temperature REAL NOT NULL,
+                            rel_humidity INT NOT NULL,
+                            window_open INT NOT NULL,
+                            PRIMARY KEY (time)
+                        )
                     """.trimIndent()
                 )
             }
@@ -75,28 +86,68 @@ object Database {
         }
     }
 
-    suspend fun loadOutdoor(timeRange: ClosedRange<Instant>?, limit: Int) {
+    suspend fun loadOutdoor(timeRange: ClosedRange<Instant>?, limit: Int): List<OutdoorMeasurement> = transaction { ctx ->
+        val records = if (timeRange != null) {
+            ctx.fetch(
+                "SELECT time, temperature, rel_humidity FROM outdoor_measurement WHERE time >= ? AND time <= ? ORDER BY time DESC LIMIT ?",
+                timeRange.start.toEpochMilli(),
+                timeRange.endInclusive.toEpochMilli(),
+                limit,
+            )
+        } else {
+            ctx.fetch(
+                "SELECT time, temperature, rel_humidity FROM outdoor_measurement ORDER BY time DESC LIMIT ?",
+                limit
+            )
+        }
+        records.map {
+            OutdoorMeasurement(
+                it.get("time", Long::class.java).let(Instant::ofEpochMilli),
+                it.get("temperature", Double::class.java),
+                it.get("rel_humidity", Int::class.java),
+            )
+        }
+    }
+    data class IndoorMeasurement(
+        val time: Instant,
+        val temperature: Double,
+        val relativeHumidity: Int,
+        val windowOpen: Boolean,
+    )
+
+    suspend fun saveIndoor(indoorMeasurement: IndoorMeasurement) {
         transaction { ctx ->
-            val records = if (timeRange != null) {
-                ctx.fetch(
-                    "SELECT time, temperature, rel_humidity FROM outdoor_measurement WHERE time >= ? AND time <= ? ORDER BY time DESC LIMIT ?",
-                    timeRange.start.toEpochMilli(),
-                    timeRange.endInclusive.toEpochMilli(),
-                    limit,
-                )
-            } else {
-                ctx.fetch(
-                    "SELECT time, temperature, rel_humidity FROM outdoor_measurement ORDER BY time DESC LIMIT ?",
-                    limit
-                )
-            }
-            records.map {
-                OutdoorMeasurement(
-                    it.get("time", Long::class.java).let(Instant::ofEpochMilli),
-                    it.get("temperature", Double::class.java),
-                    it.get("rel_humidity", Int::class.java),
-                )
-            }
+            ctx.execute(
+                "INSERT INTO indoor_measurement(time, temperature, rel_humidity, window_open) VALUES (?, ?, ?, ?)",
+                indoorMeasurement.time.toEpochMilli(),
+                indoorMeasurement.temperature,
+                indoorMeasurement.relativeHumidity,
+                if (indoorMeasurement.windowOpen) 1 else 0,
+            )
+        }
+    }
+
+    suspend fun loadIndoor(timeRange: ClosedRange<Instant>?, limit: Int): List<IndoorMeasurement> = transaction { ctx ->
+        val records = if (timeRange != null) {
+            ctx.fetch(
+                "SELECT time, temperature, rel_humidity, window_open FROM indoor_measurement WHERE time >= ? AND time <= ? ORDER BY time DESC LIMIT ?",
+                timeRange.start.toEpochMilli(),
+                timeRange.endInclusive.toEpochMilli(),
+                limit,
+            )
+        } else {
+            ctx.fetch(
+                "SELECT time, temperature, rel_humidity, window_open FROM indoor_measurement ORDER BY time DESC LIMIT ?",
+                limit
+            )
+        }
+        records.map {
+            IndoorMeasurement(
+                it.get("time", Long::class.java).let(Instant::ofEpochMilli),
+                it.get("temperature", Double::class.java),
+                it.get("rel_humidity", Int::class.java),
+                it.get("window_open", Int::class.java) > 0,
+            )
         }
     }
 }
