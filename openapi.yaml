@@ -1,0 +1,255 @@
+openapi: 3.0.1
+info:
+  title: Fan Control Backend API
+  version: 1.0.0
+paths:
+  /frontend/config:
+    get:
+      summary: Get frontend configuration
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersistentConfig'
+    post:
+      summary: Save frontend configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersistentConfig'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersistentConfig'
+  /outdoor:
+    get:
+      summary: Get outdoor sensor data
+      parameters:
+        - $ref: '#/components/parameters/LimitParameter'
+        - $ref: '#/components/parameters/DateRangeParameterStart'
+        - $ref: '#/components/parameters/DateRangeParameterEnd'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutdoorFetchResponse'
+    post:
+      summary: Save outdoor sensor data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutdoorSensorRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutdoorSensorResponse'
+  /indoor:
+    get:
+      summary: Get indoor sensor data
+      parameters:
+        - $ref: '#/components/parameters/LimitParameter'
+        - $ref: '#/components/parameters/DateRangeParameterStart'
+        - $ref: '#/components/parameters/DateRangeParameterEnd'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndoorFetchResponse'
+    post:
+      summary: Save indoor sensor data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndoorSensorRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndoorSensorResponse'
+components:
+  schemas:
+    PersistentConfig:
+      type: object
+      properties:
+        pollingRateSensorOutside:
+          type: integer
+          format: int32
+          description: Polling rate for the outdoor sensor in milliseconds
+        pollingRateSensorInside:
+          type: integer
+          format: int32
+          description: Polling rate for the indoor sensor in milliseconds
+        pollingRateWeb:
+          type: integer
+          format: int32
+          description: Polling rate for the web UI in milliseconds
+        ignoreWindow:
+          type: boolean
+          description: Flag to ignore window state for fan control
+        darkMode:
+          type: boolean
+          description: Flag to ignore window state for fan control
+        zipCode:
+          type: string
+          description: The ZIP code for weather display
+        nightModeConfig:
+          $ref: '#/components/schemas/NightModeConfig'
+      required: [pollingRateSensorInside, pollingRateWeb, ignoreWindow, darkMode, zipCode, nightModeConfig]
+    NightModeConfig:
+      type: object
+      properties:
+        startHour:
+          type: integer
+          format: int32
+          description: Start hour of the night mode
+        endHour:
+          type: integer
+          format: int32
+          description: End hour of the night mode
+        maxDutyCycle:
+          type: integer
+          format: int32
+          description: Maximum fan duty cycle for night mode
+
+    OutdoorSensorRequest:
+      type: object
+      properties:
+        temperature:
+          type: number
+          format: double
+          description: Temperature from the outdoor sensor
+        relativeHumidity:
+          type: integer
+          format: int32
+          description: Relative humidity from the outdoor sensor
+    OutdoorSensorResponse:
+      type: object
+      properties:
+        sleepDurationMilliseconds:
+          type: integer
+          format: int32
+          description: Sleep duration in milliseconds for the outdoor sensor
+    IndoorSensorRequest:
+      type: object
+      properties:
+        temperature:
+          type: number
+          format: double
+          description: Temperature from the indoor sensor
+        relativeHumidity:
+          type: integer
+          format: int32
+          description: Relative humidity from the indoor sensor
+        windowOpen:
+          type: boolean
+          description: Window open state from the indoor sensor
+    IndoorSensorResponse:
+      type: object
+      properties:
+        sleepDurationMilliseconds:
+          type: integer
+          format: int32
+          description: Sleep duration in milliseconds for the indoor sensor
+        fanDutyCycle:
+          type: integer
+          format: int32
+          description: Fan duty cycle for the indoor sensor
+    IndoorFetchResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndoorFetchResponse.Measurement'
+    OutdoorFetchResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutdoorFetchResponse.Measurement'
+    IndoorFetchResponse.Measurement:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date of the measurement
+        temperature:
+          type: number
+          format: double
+          description: Temperature from the indoor sensor
+        relativeHumidity:
+          type: integer
+          format: int32
+          description: Relative humidity from the indoor sensor
+        absoluteHumidity:
+          type: number
+          format: double
+          description: Absolute humidity calculated from temperature and relative humidity
+        windowOpen:
+          type: boolean
+          description: Window open state from the indoor sensor
+    OutdoorFetchResponse.Measurement:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date of the measurement
+        temperature:
+          type: number
+          format: double
+          description: Temperature from the outdoor sensor
+        relativeHumidity:
+          type: integer
+          format: int32
+          description: Relative humidity from the outdoor sensor
+        absoluteHumidity:
+          type: number
+          format: double
+          description: Absolute humidity calculated from temperature and relative humidity
+  parameters:
+    LimitParameter:
+      name: limit
+      in: query
+      description: Maximum number of data points to retrieve
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 1000
+    DateRangeParameterStart:
+      name: start
+      in: query
+      description: Start date and time for data retrieval (ISO 8601 format)
+      required: false
+      schema:
+        type: string
+        format: date-time
+    DateRangeParameterEnd:
+      name: end
+      in: query
+      description: End date and time for data retrieval (ISO 8601 format)
+      required: false
+      schema:
+        type: string
+        format: date-time
