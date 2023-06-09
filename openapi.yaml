@@ -112,6 +112,10 @@ components:
         zipCode:
           type: string
           description: The ZIP code for weather display
+        hysteresisOffset:
+          type: number
+          description: > 
+            When switching fan enablement, only consider enabling if the absolute humidity difference is greater than the configured value.
         nightModeConfig:
           $ref: '#/components/schemas/NightModeConfig'
       required: [pollingRateSensorInside, pollingRateWeb, ignoreWindow, darkMode, zipCode, nightModeConfig]

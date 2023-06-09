@@ -16,6 +16,8 @@ import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalTime
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.absoluteValue
 import kotlin.math.exp
 import kotlin.time.Duration.Companion.seconds
 
@@ -146,6 +148,7 @@ fun Application.myApplicationModule() {
                 )
             }))
         }
+        val lastSwitchValue = AtomicBoolean()
         post("/indoor") {
             val req = call.receive<IndoorSensorRequest>()
             Database.saveIndoor(
@@ -162,10 +165,12 @@ fun Application.myApplicationModule() {
             val fanDutyCycle = when {
                 req.windowOpen && !config.ignoreWindow -> 0
                 lastOurdoorMeasurement == null -> 0
-                calculateAbsoluteHumidity(
-                    lastOurdoorMeasurement.temperature,
-                    lastOurdoorMeasurement.relativeHumidity
-                ) < calculateAbsoluteHumidity(req.temperature, req.relativeHumidity) -> 100
+                shouldEnable(
+                    config,
+                    lastSwitchValue,
+                    calculateAbsoluteHumidity(req.temperature, req.relativeHumidity),
+                    calculateAbsoluteHumidity(lastOurdoorMeasurement.temperature, lastOurdoorMeasurement.relativeHumidity)
+                ) -> 100
 
                 else -> 0
             }
@@ -180,6 +185,12 @@ private fun calculateAbsoluteHumidity(temperature: Double, relativeHumidity: Int
     val saturationVaporPressure = 6.112 * exp((17.67 * temperature) / (temperature + 243.5))
     val actualVaporPressure = relativeHumidity * saturationVaporPressure / 100.0
     return 217 * actualVaporPressure / (temperature + 273.15)
+}
+
+private fun shouldEnable(config: PersistentConfig, lastSwitchValue: AtomicBoolean, insideAbsoluteHumidity: Double, outsideAbsoluteHumidity: Double): Boolean {
+    val offset = (insideAbsoluteHumidity - outsideAbsoluteHumidity).absoluteValue
+    if (offset < config.hysteresisOffset)  return lastSwitchValue.get()
+    return (insideAbsoluteHumidity > outsideAbsoluteHumidity).also(lastSwitchValue::set)
 }
 
 fun getMaxDutyCycleIfNight(config: NightModeConfig): Int? {
