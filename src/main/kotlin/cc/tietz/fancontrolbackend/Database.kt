@@ -34,6 +34,7 @@ object Database {
                             time BIGINT NOT NULL,
                             temperature REAL NOT NULL,
                             rel_humidity INT NOT NULL,
+                            battery REAL NOT NULL,
                             PRIMARY KEY (time)
                         );
                     """.trimIndent()
@@ -73,15 +74,17 @@ object Database {
         val time: Instant,
         val temperature: Double,
         val relativeHumidity: Int,
+        val battery: Double,
     )
 
     suspend fun saveOutdoor(outdoorMeasurement: OutdoorMeasurement) {
         transaction { ctx ->
             ctx.execute(
-                "INSERT INTO outdoor_measurement(time, temperature, rel_humidity) VALUES (?, ?, ?)",
+                "INSERT INTO outdoor_measurement(time, temperature, rel_humidity, battery) VALUES (?, ?, ?, ?)",
                 outdoorMeasurement.time.toEpochMilli(),
                 outdoorMeasurement.temperature,
                 outdoorMeasurement.relativeHumidity,
+                outdoorMeasurement.battery
             )
         }
     }
@@ -89,14 +92,14 @@ object Database {
     suspend fun loadOutdoor(timeRange: ClosedRange<Instant>?, limit: Int): List<OutdoorMeasurement> = transaction { ctx ->
         val records = if (timeRange != null) {
             ctx.fetch(
-                "SELECT time, temperature, rel_humidity FROM outdoor_measurement WHERE time >= ? AND time <= ? ORDER BY time DESC LIMIT ?",
+                "SELECT time, temperature, rel_humidity, battery FROM outdoor_measurement WHERE time >= ? AND time <= ? ORDER BY time DESC LIMIT ?",
                 timeRange.start.toEpochMilli(),
                 timeRange.endInclusive.toEpochMilli(),
                 limit,
             )
         } else {
             ctx.fetch(
-                "SELECT time, temperature, rel_humidity FROM outdoor_measurement ORDER BY time DESC LIMIT ?",
+                "SELECT time, temperature, rel_humidity, battery FROM outdoor_measurement ORDER BY time DESC LIMIT ?",
                 limit
             )
         }
@@ -105,6 +108,7 @@ object Database {
                 it.get("time", Long::class.java).let(Instant::ofEpochMilli),
                 it.get("temperature", Double::class.java),
                 it.get("rel_humidity", Int::class.java),
+                it.get("battery", Double::class.java),
             )
         }
     }

@@ -86,6 +86,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IndoorSensorResponse'
+  /weather:
+    get:
+      summary: Gets current weather & forecast data
+      responses:
+        '200':
+          description: Successfull response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherResponse'
 components:
   schemas:
     PersistentConfig:
@@ -146,6 +156,10 @@ components:
           type: integer
           format: int32
           description: Relative humidity from the outdoor sensor
+        battery:
+          type: number
+          format: double
+          description: Current battery level
     OutdoorSensorResponse:
       type: object
       properties:
@@ -231,6 +245,218 @@ components:
           type: number
           format: double
           description: Absolute humidity calculated from temperature and relative humidity
+        battery:
+          type: number
+          format: double
+          description: Battery level
+    Coord:
+      type: "object"
+      properties:
+        lon:
+          type: "number"
+          format: "double"
+        lat:
+          type: "number"
+          format: "double"
+    Weather:
+      type: "object"
+      properties:
+        id:
+          type: "integer"
+          format: "int32"
+        main:
+          type: "string"
+        description:
+          type: "string"
+        icon:
+          type: "string"
+    WeatherMain:
+      type: "object"
+      properties:
+        temp:
+          type: "number"
+          format: "double"
+        feels_like:
+          type: "number"
+          format: "double"
+        temp_min:
+          type: "number"
+          format: "double"
+        temp_max:
+          type: "number"
+          format: "double"
+        pressure:
+          type: "integer"
+          format: "int32"
+        humidity:
+          type: "integer"
+          format: "int32"
+        sea_level:
+          type: "integer"
+          format: "int32"
+        grnd_level:
+          type: "integer"
+          format: "int32"
+    Wind:
+      type: "object"
+      properties:
+        speed:
+          type: "number"
+          format: "double"
+        deg:
+          type: "integer"
+          format: "int32"
+        gust:
+          type: "number"
+          format: "double"
+    Rain:
+      type: "object"
+      properties:
+        "1h":
+          type: "number"
+          format: "double"
+    Clouds:
+      type: "object"
+      properties:
+        all:
+          type: "integer"
+          format: "int32"
+    WeatherSys:
+      type: "object"
+      properties:
+        type:
+          type: "integer"
+          format: "int32"
+        id:
+          type: "integer"
+          format: "int32"
+        country:
+          type: "string"
+        sunrise:
+          type: "integer"
+          format: "int64"
+        sunset:
+          type: "integer"
+          format: "int64"
+    WeatherData:
+      type: "object"
+      properties:
+        coord:
+          $ref: "#/components/schemas/Coord"
+        weather:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Weather"
+        base:
+          type: "string"
+        main:
+          $ref: "#/components/schemas/WeatherMain"
+        visibility:
+          type: "integer"
+          format: "int32"
+        wind:
+          $ref: "#/components/schemas/Wind"
+        rain:
+          $ref: "#/components/schemas/Rain"
+        clouds:
+          $ref: "#/components/schemas/Clouds"
+        dt:
+          type: "integer"
+          format: "int64"
+        sys:
+          $ref: "#/components/schemas/WeatherSys"
+        timezone:
+          type: "integer"
+          format: "int32"
+        id:
+          type: "integer"
+          format: "int32"
+        name:
+          type: "string"
+        cod:
+          type: "integer"
+          format: "int32"
+    ForecastSys:
+      type: "object"
+      properties:
+        pod:
+          type: "string"
+    WeatherItem:
+      type: "object"
+      properties:
+        dt:
+          type: "integer"
+          format: "int64"
+        main:
+          $ref: "#/components/schemas/WeatherMain"
+        weather:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Weather"
+        clouds:
+          $ref: "#/components/schemas/Clouds"
+        wind:
+          $ref: "#/components/schemas/Wind"
+        visibility:
+          type: "integer"
+          format: "int32"
+        pop:
+          type: "number"
+          format: "double"
+        rain:
+          $ref: "#/components/schemas/Rain"
+        sys:
+          $ref: "#/components/schemas/ForecastSys"
+        dt_txt:
+          type: "string"
+    City:
+      type: "object"
+      properties:
+        id:
+          type: "integer"
+          format: "int32"
+        name:
+          type: "string"
+        coord:
+          $ref: "#/components/schemas/Coord"
+        country:
+          type: "string"
+        population:
+          type: "integer"
+          format: "int32"
+        timezone:
+          type: "integer"
+          format: "int32"
+        sunrise:
+          type: "integer"
+          format: "int64"
+        sunset:
+          type: "integer"
+          format: "int64"
+    ForecastData:
+      type: "object"
+      properties:
+        cod:
+          type: "string"
+        message:
+          type: "integer"
+          format: "int32"
+        cnt:
+          type: "integer"
+          format: "int32"
+        list:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/WeatherItem"
+        city:
+          $ref: "#/components/schemas/City"
+    WeatherResponse:
+      type: "object"
+      properties:
+        current:
+          $ref: "#/components/schemas/WeatherData"
+        forecast:
+          $ref: "#/components/schemas/ForecastData"
   parameters:
     LimitParameter:
       name: limit

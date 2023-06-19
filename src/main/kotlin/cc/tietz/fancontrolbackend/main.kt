@@ -1,5 +1,6 @@
 package cc.tietz.fancontrolbackend
 
+import com.google.gson.Gson
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -14,6 +15,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.time.Instant
 import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,6 +32,7 @@ fun main() {
 data class OutdoorSensorRequest(
     val temperature: Double,
     val relativeHumidity: Int,
+    val battery: Double,
 )
 
 @Serializable
@@ -86,7 +90,6 @@ data class IndoorFetchResponse(
     )
 }
 
-
 @Serializable
 data class OutdoorFetchResponse(
     val data: List<Measurement>,
@@ -97,8 +100,125 @@ data class OutdoorFetchResponse(
         val temperature: Double,
         val relativeHumidity: Int,
         val absoluteHumidity: Double,
+        val battery: Double,
     )
 }
+
+@Serializable
+data class City(
+    val id: Int,
+    val name: String,
+    val coord: Coord,
+    val country: String,
+    val population: Int,
+    val timezone: Int,
+    val sunrise: Long,
+    val sunset: Long
+)
+
+@Serializable
+data class Clouds(
+    val all: Int,
+)
+
+@Serializable
+data class Coord(
+    val lon: Double,
+    val lat: Double,
+)
+
+@Serializable
+data class ForecastData(
+    val cod: String,
+    val message: Int,
+    val cnt: Int,
+    val list: List<WeatherItem>,
+    val city: City
+)
+
+@Serializable
+data class ForecastSys(
+    val pod: String
+)
+
+@Serializable
+data class Rain(
+    val `1h`: Double,
+)
+
+@Serializable
+data class Weather(
+    val id: Int,
+    val main: String,
+    val description: String,
+    val icon: String,
+)
+
+@Serializable
+data class WeatherData(
+    val coord: Coord,
+    val weather: List<Weather>,
+    val base: String,
+    val main: WeatherMain,
+    val visibility: Int,
+    val wind: Wind,
+    val rain: Rain?,
+    val clouds: Clouds,
+    val dt: Long,
+    val sys: WeatherSys,
+    val timezone: Int,
+    val id: Int,
+    val name: String,
+    val cod: Int,
+)
+
+@Serializable
+data class WeatherItem(
+    val dt: Long,
+    val main: WeatherMain,
+    val weather: List<Weather>,
+    val clouds: Clouds,
+    val wind: Wind,
+    val visibility: Int,
+    val pop: Double,
+    val rain: Rain?,
+    val sys: ForecastSys,
+    val dt_txt: String
+)
+
+@Serializable
+data class WeatherMain(
+    val temp: Double,
+    val feels_like: Double,
+    val temp_min: Double,
+    val temp_max: Double,
+    val pressure: Int,
+    val humidity: Int,
+    val sea_level: Int,
+    val grnd_level: Int,
+)
+
+@Serializable
+data class WeatherSys(
+    val type: Int,
+    val id: Int,
+    val country: String,
+    val sunrise: Long,
+    val sunset: Long,
+)
+
+@Serializable
+data class Wind(
+    val speed: Double,
+    val deg: Int,
+    val gust: Double,
+)
+
+@Serializable
+data class WeatherResponse(
+    val current: WeatherData,
+    val forecast: ForecastData,
+)
 
 private const val defaultLimit = 1000
 
@@ -124,13 +244,14 @@ fun Application.myApplicationModule() {
                     it.time.toString(),
                     it.temperature,
                     it.relativeHumidity,
+                    it.battery,
                     calculateAbsoluteHumidity(it.temperature, it.relativeHumidity),
                 )
             }))
         }
         post("/outdoor") {
             val req = call.receive<OutdoorSensorRequest>()
-            Database.saveOutdoor(Database.OutdoorMeasurement(Instant.now(), req.temperature, req.relativeHumidity))
+            Database.saveOutdoor(Database.OutdoorMeasurement(Instant.now(), req.temperature, req.relativeHumidity, req.battery))
             // todo: compute delay based on outdoor weather information
             val delay = Database.loadConfig().pollingRateSensorOutside ?: 5.seconds
             call.respond(OutdoorSensorResponse(delay.inWholeMilliseconds.toInt()))
@@ -147,6 +268,32 @@ fun Application.myApplicationModule() {
                     it.windowOpen,
                 )
             }))
+        }
+        get("/weather") {
+            val key = System.getenv("weather_key")
+            if (key.isNullOrEmpty()) {
+                call.respond(500)
+            } else {
+                val zipCode = Database.loadConfig().zipCode
+
+                val reqCurrentWeather = Request.Builder()
+                    .url("https://api.openweathermap.org/data/2.5/weather?zip=${zipCode},DE&appid=${key}&units=metric")
+                    .build()
+                val reqForecast = Request.Builder()
+                    .url("https://api.openweathermap.org/data/2.5/forecast?zip=${zipCode},DE&appid=${key}&cnt=3&units=metric")
+                    .build()
+
+                val client = OkHttpClient()
+
+                val resCurrentWeather = client.newCall(reqCurrentWeather).execute()
+                val resForecast = client.newCall(reqForecast).execute()
+
+                val gson = Gson()
+                val current = gson.fromJson(resCurrentWeather.body?.string(), WeatherData::class.java)
+                val forecast = gson.fromJson(resForecast.body?.string(), ForecastData::class.java)
+
+                call.respond(WeatherResponse(current, forecast))
+            }
         }
         val lastSwitchValue = AtomicBoolean()
         post("/indoor") {
