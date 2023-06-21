@@ -154,7 +154,7 @@ components:
           description: Temperature from the outdoor sensor
         relativeHumidity:
           type: integer
-          format: int32
+          format: double
           description: Relative humidity from the outdoor sensor
         battery:
           type: number
@@ -176,7 +176,7 @@ components:
           description: Temperature from the indoor sensor
         relativeHumidity:
           type: integer
-          format: int32
+          format: double
           description: Relative humidity from the indoor sensor
         windowOpen:
           type: boolean
@@ -218,7 +218,7 @@ components:
           description: Temperature from the indoor sensor
         relativeHumidity:
           type: integer
-          format: int32
+          format: double
           description: Relative humidity from the indoor sensor
         absoluteHumidity:
           type: number
@@ -239,7 +239,7 @@ components:
           description: Temperature from the outdoor sensor
         relativeHumidity:
           type: integer
-          format: int32
+          format: double
           description: Relative humidity from the outdoor sensor
         absoluteHumidity:
           type: number

@@ -31,7 +31,7 @@ fun main() {
 @Serializable
 data class OutdoorSensorRequest(
     val temperature: Double,
-    val relativeHumidity: Int,
+    val relativeHumidity: Double,
     val battery: Double,
 )
 
@@ -43,7 +43,7 @@ data class OutdoorSensorResponse(
 @Serializable
 data class IndoorSensorRequest(
     val temperature: Double,
-    val relativeHumidity: Int,
+    val relativeHumidity: Double,
     val windowOpen: Boolean,
 )
 
@@ -84,7 +84,7 @@ data class IndoorFetchResponse(
     data class Measurement(
         val date: String,
         val temperature: Double,
-        val relativeHumidity: Int,
+        val relativeHumidity: Double,
         val absoluteHumidity: Double,
         val windowOpen: Boolean,
     )
@@ -98,7 +98,7 @@ data class OutdoorFetchResponse(
     data class Measurement(
         val date: String,
         val temperature: Double,
-        val relativeHumidity: Int,
+        val relativeHumidity: Double,
         val absoluteHumidity: Double,
         val battery: Double,
     )
@@ -328,7 +328,7 @@ fun Application.myApplicationModule() {
     }
 }
 
-private fun calculateAbsoluteHumidity(temperature: Double, relativeHumidity: Int): Double {
+private fun calculateAbsoluteHumidity(temperature: Double, relativeHumidity: Double): Double {
     val saturationVaporPressure = 6.112 * exp((17.67 * temperature) / (temperature + 243.5))
     val actualVaporPressure = relativeHumidity * saturationVaporPressure / 100.0
     return 217 * actualVaporPressure / (temperature + 273.15)

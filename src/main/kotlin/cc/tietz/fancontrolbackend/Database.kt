@@ -33,7 +33,7 @@ object Database {
                         CREATE TABLE IF NOT EXISTS outdoor_measurement (
                             time BIGINT NOT NULL,
                             temperature REAL NOT NULL,
-                            rel_humidity INT NOT NULL,
+                            rel_humidity REAL NOT NULL,
                             battery REAL NOT NULL,
                             PRIMARY KEY (time)
                         );
@@ -73,7 +73,7 @@ object Database {
     data class OutdoorMeasurement(
         val time: Instant,
         val temperature: Double,
-        val relativeHumidity: Int,
+        val relativeHumidity: Double,
         val battery: Double,
     )
 
@@ -107,7 +107,7 @@ object Database {
             OutdoorMeasurement(
                 it.get("time", Long::class.java).let(Instant::ofEpochMilli),
                 it.get("temperature", Double::class.java),
-                it.get("rel_humidity", Int::class.java),
+                it.get("rel_humidity", Double::class.java),
                 it.get("battery", Double::class.java),
             )
         }
@@ -115,7 +115,7 @@ object Database {
     data class IndoorMeasurement(
         val time: Instant,
         val temperature: Double,
-        val relativeHumidity: Int,
+        val relativeHumidity: Double,
         val windowOpen: Boolean,
     )
 
@@ -149,7 +149,7 @@ object Database {
             IndoorMeasurement(
                 it.get("time", Long::class.java).let(Instant::ofEpochMilli),
                 it.get("temperature", Double::class.java),
-                it.get("rel_humidity", Int::class.java),
+                it.get("rel_humidity", Double::class.java),
                 it.get("window_open", Int::class.java) > 0,
             )
         }
