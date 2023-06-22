@@ -220,6 +220,11 @@ data class WeatherResponse(
     val forecast: ForecastData,
 )
 
+@Serializable
+data class SwitchStateResponse(
+    val state: Boolean,
+)
+
 private const val defaultLimit = 1000
 
 fun Application.myApplicationModule() {
@@ -251,7 +256,14 @@ fun Application.myApplicationModule() {
         }
         post("/outdoor") {
             val req = call.receive<OutdoorSensorRequest>()
-            Database.saveOutdoor(Database.OutdoorMeasurement(Instant.now(), req.temperature, req.relativeHumidity, req.battery))
+            Database.saveOutdoor(
+                Database.OutdoorMeasurement(
+                    Instant.now(),
+                    req.temperature,
+                    req.relativeHumidity,
+                    req.battery
+                )
+            )
             // todo: compute delay based on outdoor weather information
             val delay = Database.loadConfig().pollingRateSensorOutside ?: 5.seconds
             call.respond(OutdoorSensorResponse(delay.inWholeMilliseconds.toInt()))
@@ -314,16 +326,23 @@ fun Application.myApplicationModule() {
                 lastOurdoorMeasurement == null -> 0
                 shouldEnable(
                     config,
-                    lastSwitchValue,
+                    lastSwitchValue.get(),
                     calculateAbsoluteHumidity(req.temperature, req.relativeHumidity),
-                    calculateAbsoluteHumidity(lastOurdoorMeasurement.temperature, lastOurdoorMeasurement.relativeHumidity)
+                    calculateAbsoluteHumidity(
+                        lastOurdoorMeasurement.temperature,
+                        lastOurdoorMeasurement.relativeHumidity
+                    )
                 ) -> 100
 
                 else -> 0
             }
             val maxFanDutyCycle = getMaxDutyCycleIfNight(config.nightModeConfig)
             val finalFanDutyCycle = maxFanDutyCycle?.let { fanDutyCycle.coerceAtMost(it) } ?: fanDutyCycle
+            lastSwitchValue.set(finalFanDutyCycle > 0)
             call.respond(IndoorSensorResponse(delay.inWholeMilliseconds.toInt(), finalFanDutyCycle))
+        }
+        get("/switchState") {
+            call.respond(SwitchStateResponse(lastSwitchValue.get()))
         }
     }
 }
@@ -334,10 +353,15 @@ private fun calculateAbsoluteHumidity(temperature: Double, relativeHumidity: Dou
     return 217 * actualVaporPressure / (temperature + 273.15)
 }
 
-private fun shouldEnable(config: PersistentConfig, lastSwitchValue: AtomicBoolean, insideAbsoluteHumidity: Double, outsideAbsoluteHumidity: Double): Boolean {
+private fun shouldEnable(
+    config: PersistentConfig,
+    lastSwitchValue: Boolean,
+    insideAbsoluteHumidity: Double,
+    outsideAbsoluteHumidity: Double
+): Boolean {
     val offset = (insideAbsoluteHumidity - outsideAbsoluteHumidity).absoluteValue
-    if (offset < config.hysteresisOffset)  return lastSwitchValue.get()
-    return (insideAbsoluteHumidity > outsideAbsoluteHumidity).also(lastSwitchValue::set)
+    if (offset < config.hysteresisOffset) return lastSwitchValue
+    return insideAbsoluteHumidity > outsideAbsoluteHumidity
 }
 
 fun getMaxDutyCycleIfNight(config: NightModeConfig): Int? {

@@ -91,11 +91,26 @@ paths:
       summary: Gets current weather & forecast data
       responses:
         '200':
-          description: Successfull response
+          description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WeatherResponse'
+  /switchState:
+    get:
+      summary: Get the current state of the fan (on/off)
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    type: boolean
+                    description: If the fan is on or off
+                required: [state]
 components:
   schemas:
     PersistentConfig:
