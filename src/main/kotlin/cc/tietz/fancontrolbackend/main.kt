@@ -1,6 +1,5 @@
 package cc.tietz.fancontrolbackend
 
-import com.google.gson.Gson
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -15,13 +14,13 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.time.Instant
 import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.fixedRateTimer
 import kotlin.math.absoluteValue
 import kotlin.math.exp
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 fun main() {
@@ -105,122 +104,6 @@ data class OutdoorFetchResponse(
 }
 
 @Serializable
-data class City(
-    val id: Int,
-    val name: String,
-    val coord: Coord,
-    val country: String,
-    val population: Int,
-    val timezone: Int,
-    val sunrise: Long,
-    val sunset: Long
-)
-
-@Serializable
-data class Clouds(
-    val all: Int,
-)
-
-@Serializable
-data class Coord(
-    val lon: Double,
-    val lat: Double,
-)
-
-@Serializable
-data class ForecastData(
-    val cod: String,
-    val message: Int,
-    val cnt: Int,
-    val list: List<WeatherItem>,
-    val city: City
-)
-
-@Serializable
-data class ForecastSys(
-    val pod: String
-)
-
-@Serializable
-data class Rain(
-    val `1h`: Double,
-)
-
-@Serializable
-data class Weather(
-    val id: Int,
-    val main: String,
-    val description: String,
-    val icon: String,
-)
-
-@Serializable
-data class WeatherData(
-    val coord: Coord,
-    val weather: List<Weather>,
-    val base: String,
-    val main: WeatherMain,
-    val visibility: Int,
-    val wind: Wind,
-    val rain: Rain?,
-    val clouds: Clouds,
-    val dt: Long,
-    val sys: WeatherSys,
-    val timezone: Int,
-    val id: Int,
-    val name: String,
-    val cod: Int,
-)
-
-@Serializable
-data class WeatherItem(
-    val dt: Long,
-    val main: WeatherMain,
-    val weather: List<Weather>,
-    val clouds: Clouds,
-    val wind: Wind,
-    val visibility: Int,
-    val pop: Double,
-    val rain: Rain?,
-    val sys: ForecastSys,
-    val dt_txt: String
-)
-
-@Serializable
-data class WeatherMain(
-    val temp: Double,
-    val feels_like: Double,
-    val temp_min: Double,
-    val temp_max: Double,
-    val pressure: Int,
-    val humidity: Int,
-    val sea_level: Int,
-    val grnd_level: Int,
-)
-
-@Serializable
-data class WeatherSys(
-    val type: Int,
-    val id: Int,
-    val country: String,
-    val sunrise: Long,
-    val sunset: Long,
-)
-
-@Serializable
-data class Wind(
-    val speed: Double,
-    val deg: Int,
-    val gust: Double,
-)
-
-@Serializable
-data class WeatherResponse(
-    val current: WeatherData,
-    val forecast: ForecastData,
-)
-
-@Serializable
 data class SwitchStateResponse(
     val state: Boolean,
 )
@@ -264,8 +147,20 @@ fun Application.myApplicationModule() {
                     req.battery
                 )
             )
-            // todo: compute delay based on outdoor weather information
-            val delay = Database.loadConfig().pollingRateSensorOutside ?: 5.seconds
+            val config = Database.loadConfig()
+            val delay = config.pollingRateSensorOutside ?: WeatherApi.read()?.let{ weather ->
+                val currentWeather = weather.current.main
+                val currentAbsoluteHumidity = calculateAbsoluteHumidity(currentWeather.temp, currentWeather.humidity.toDouble())
+                val sensorAbsoluteHumidity = calculateAbsoluteHumidity(req.temperature, req.relativeHumidity)
+                if ((currentAbsoluteHumidity - sensorAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
+                    val futureWeather = weather.forecast.list.first().main
+                    val futureAbsoluteHumidity = calculateAbsoluteHumidity(futureWeather.temp, futureWeather.humidity.toDouble())
+                    if ((futureAbsoluteHumidity - currentAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
+                        return@let 30.minutes
+                    }
+                }
+                null
+            } ?: 10.minutes
             call.respond(OutdoorSensorResponse(delay.inWholeMilliseconds.toInt()))
         }
         get("/indoor") {
@@ -282,29 +177,11 @@ fun Application.myApplicationModule() {
             }))
         }
         get("/weather") {
-            val key = System.getenv("weather_key")
-            if (key.isNullOrEmpty()) {
+            val weather = WeatherApi.read()
+            if (weather == null) {
                 call.respond(500)
             } else {
-                val zipCode = Database.loadConfig().zipCode
-
-                val reqCurrentWeather = Request.Builder()
-                    .url("https://api.openweathermap.org/data/2.5/weather?zip=${zipCode},DE&appid=${key}&units=metric")
-                    .build()
-                val reqForecast = Request.Builder()
-                    .url("https://api.openweathermap.org/data/2.5/forecast?zip=${zipCode},DE&appid=${key}&cnt=3&units=metric")
-                    .build()
-
-                val client = OkHttpClient()
-
-                val resCurrentWeather = client.newCall(reqCurrentWeather).execute()
-                val resForecast = client.newCall(reqForecast).execute()
-
-                val gson = Gson()
-                val current = gson.fromJson(resCurrentWeather.body?.string(), WeatherData::class.java)
-                val forecast = gson.fromJson(resForecast.body?.string(), ForecastData::class.java)
-
-                call.respond(WeatherResponse(current, forecast))
+                call.respond(weather)
             }
         }
         val lastSwitchValue = AtomicBoolean()
