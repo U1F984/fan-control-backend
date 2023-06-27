@@ -17,11 +17,9 @@ import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.fixedRateTimer
 import kotlin.math.absoluteValue
 import kotlin.math.exp
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 fun main() {
     embeddedServer(Netty, port = 8080, module = Application::myApplicationModule).start(wait = true)
@@ -216,7 +214,7 @@ fun Application.myApplicationModule() {
             val maxFanDutyCycle = getMaxDutyCycleIfNight(config.nightModeConfig)
             val finalFanDutyCycle = maxFanDutyCycle?.let { fanDutyCycle.coerceAtMost(it) } ?: fanDutyCycle
             lastSwitchValue.set(finalFanDutyCycle > 0)
-            call.respond(IndoorSensorResponse(delay.inWholeMilliseconds.toInt(), finalFanDutyCycle))
+            call.respond(IndoorSensorResponse(delay?.inWholeMilliseconds?.toInt() ?: 5000, finalFanDutyCycle))
         }
         get("/switchState") {
             call.respond(SwitchStateResponse(lastSwitchValue.get()))
@@ -241,9 +239,9 @@ private fun shouldEnable(
     return insideAbsoluteHumidity > outsideAbsoluteHumidity
 }
 
-fun getMaxDutyCycleIfNight(config: NightModeConfig): Int? {
+fun getMaxDutyCycleIfNight(config: NightModeConfig?): Int? {
     val currentHour = LocalTime.now().hour
-    val startHour = config.startHour ?: return null
+    val startHour = config?.startHour ?: return null
     val endHour = config.endHour ?: return null
 
     return config.maxDutyCycle?.takeIf {
