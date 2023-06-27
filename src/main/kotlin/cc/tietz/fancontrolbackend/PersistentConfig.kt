@@ -21,7 +21,7 @@ data class PersistentConfig(
     val pollingRateSensorOutside: Duration?,
     val ignoreWindow: Boolean,
     val hysteresisOffset: Double,
-    val nightModeConfig: NightModeConfig,
+    val nightModeConfig: NightModeConfig?,
 ) {
     companion object {
         val DEFAULT = PersistentConfig(
