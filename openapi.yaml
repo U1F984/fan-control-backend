@@ -96,9 +96,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WeatherResponse'
-  /switchState:
+  /state:
     get:
-      summary: Get the current state of the fan (on/off)
+      summary: Get the current state of the fan, window and night mode (on/off)
       responses:
         '200':
           description: Successful response
@@ -107,10 +107,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  state:
+                  fanDutyCycle:
+                    type: number
+                    description: How fast the fan is running (0 = off, 100 = full power)
+                  windowOpen:
                     type: boolean
-                    description: If the fan is on or off
-                required: [state]
+                    description: Is the window open?
+                  nightModeConfig:
+                    $ref: '#/components/schemas/NightModeConfig'
+                required: [fanDutyCycle, windowOpen]
 components:
   schemas:
     PersistentConfig:

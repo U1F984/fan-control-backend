@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.absoluteValue
 import kotlin.math.exp
 import kotlin.time.Duration.Companion.minutes
@@ -48,6 +49,13 @@ data class IndoorSensorRequest(
 data class IndoorSensorResponse(
     val sleepDurationMilliseconds: Int,
     val fanDutyCycle: Int,
+)
+
+@Serializable
+data class CurrentSateResponse(
+    val fanDutyCycle: Int,
+    val windowOpen: Boolean,
+    val nightModeConfig: NightModeConfig?,
 )
 
 data class DateRange(
@@ -100,11 +108,6 @@ data class OutdoorFetchResponse(
         val battery: Double,
     )
 }
-
-@Serializable
-data class SwitchStateResponse(
-    val state: Boolean,
-)
 
 private const val defaultLimit = 1000
 
@@ -182,7 +185,8 @@ fun Application.myApplicationModule() {
                 call.respond(weather)
             }
         }
-        val lastSwitchValue = AtomicBoolean()
+        val lastFanDutyCycle = AtomicInteger()
+        val lastWindowOpen = AtomicBoolean()
         post("/indoor") {
             val req = call.receive<IndoorSensorRequest>()
             Database.saveIndoor(
@@ -193,6 +197,7 @@ fun Application.myApplicationModule() {
                     req.windowOpen
                 )
             )
+            lastWindowOpen.set(req.windowOpen)
             val config = Database.loadConfig()
             val delay = config.pollingRateSensorInside
             val lastOurdoorMeasurement = Database.loadOutdoor(timeRange = null, limit = 1).lastOrNull()
@@ -201,7 +206,7 @@ fun Application.myApplicationModule() {
                 lastOurdoorMeasurement == null -> 0
                 shouldEnable(
                     config,
-                    lastSwitchValue.get(),
+                    lastFanDutyCycle.get() > 0,
                     calculateAbsoluteHumidity(req.temperature, req.relativeHumidity),
                     calculateAbsoluteHumidity(
                         lastOurdoorMeasurement.temperature,
@@ -213,11 +218,12 @@ fun Application.myApplicationModule() {
             }
             val maxFanDutyCycle = getMaxDutyCycleIfNight(config.nightModeConfig)
             val finalFanDutyCycle = maxFanDutyCycle?.let { fanDutyCycle.coerceAtMost(it) } ?: fanDutyCycle
-            lastSwitchValue.set(finalFanDutyCycle > 0)
+            lastFanDutyCycle.set(finalFanDutyCycle)
             call.respond(IndoorSensorResponse(delay?.inWholeMilliseconds?.toInt() ?: 5000, finalFanDutyCycle))
         }
-        get("/switchState") {
-            call.respond(SwitchStateResponse(lastSwitchValue.get()))
+        get("/state") {
+            val config = Database.loadConfig()
+            call.respond(CurrentSateResponse(lastFanDutyCycle.get(), lastWindowOpen.get(), config.nightModeConfig))
         }
     }
 }
