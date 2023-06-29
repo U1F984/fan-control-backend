@@ -1,9 +1,9 @@
 package cc.tietz.fancontrolbackend
 
 import kotlinx.serialization.Serializable
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 
 @Serializable
 data class NightModeConfig(
@@ -16,9 +16,9 @@ data class NightModeConfig(
 data class PersistentConfig(
     val zipCode: String,
     val darkMode: Boolean,
-    val pollingRateWeb: Duration,
-    val pollingRateSensorInside: Duration?,
-    val pollingRateSensorOutside: Duration?,
+    val pollingRateWeb: Long,
+    val pollingRateSensorInside: Long?,
+    val pollingRateSensorOutside: Long?,
     val ignoreWindow: Boolean,
     val hysteresisOffset: Double,
     val nightModeConfig: NightModeConfig?,
@@ -27,9 +27,9 @@ data class PersistentConfig(
         val DEFAULT = PersistentConfig(
             "10117",
             false,
-            5.seconds,
-            5.seconds,
-            5.minutes,
+            5.seconds.toLong(DurationUnit.MILLISECONDS),
+            5.seconds.toLong(DurationUnit.MILLISECONDS),
+            5.minutes.toLong(DurationUnit.MILLISECONDS),
             false,
             2.0,
             NightModeConfig(

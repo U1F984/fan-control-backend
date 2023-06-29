@@ -1,18 +1,14 @@
 package cc.tietz.fancontrolbackend
 
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.Application
-import io.ktor.server.application.call
-import io.ktor.server.application.install
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
-import io.ktor.server.response.respond
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.routing
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalTime
@@ -20,7 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.absoluteValue
 import kotlin.math.exp
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.DurationUnit
 
 fun main() {
     embeddedServer(Netty, port = 8080, module = Application::myApplicationModule).start(wait = true)
@@ -149,20 +147,23 @@ fun Application.myApplicationModule() {
                 )
             )
             val config = Database.loadConfig()
-            val delay = config.pollingRateSensorOutside ?: WeatherApi.read()?.let{ weather ->
-                val currentWeather = weather.current.main
-                val currentAbsoluteHumidity = calculateAbsoluteHumidity(currentWeather.temp, currentWeather.humidity.toDouble())
-                val sensorAbsoluteHumidity = calculateAbsoluteHumidity(req.temperature, req.relativeHumidity)
-                if ((currentAbsoluteHumidity - sensorAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
-                    val futureWeather = weather.forecast.list.first().main
-                    val futureAbsoluteHumidity = calculateAbsoluteHumidity(futureWeather.temp, futureWeather.humidity.toDouble())
-                    if ((futureAbsoluteHumidity - currentAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
-                        return@let 30.minutes
+            val delay = config.pollingRateSensorOutside?.milliseconds
+                ?: WeatherApi.read()?.let { weather ->
+                    val currentWeather = weather.current.main
+                    val currentAbsoluteHumidity =
+                        calculateAbsoluteHumidity(currentWeather.temp, currentWeather.humidity.toDouble())
+                    val sensorAbsoluteHumidity = calculateAbsoluteHumidity(req.temperature, req.relativeHumidity)
+                    if ((currentAbsoluteHumidity - sensorAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
+                        val futureWeather = weather.forecast.list.first().main
+                        val futureAbsoluteHumidity =
+                            calculateAbsoluteHumidity(futureWeather.temp, futureWeather.humidity.toDouble())
+                        if ((futureAbsoluteHumidity - currentAbsoluteHumidity).absoluteValue < config.hysteresisOffset) {
+                            return@let 30.minutes
+                        }
                     }
-                }
-                null
-            } ?: 10.minutes
-            call.respond(OutdoorSensorResponse(delay.inWholeMilliseconds.toInt()))
+                    null
+                } ?: 10.minutes
+            call.respond(OutdoorSensorResponse(delay.toInt(DurationUnit.MILLISECONDS)))
         }
         get("/indoor") {
             val req = call.parameters.let(FetchRequest::fromParameters)
@@ -219,7 +220,7 @@ fun Application.myApplicationModule() {
             val maxFanDutyCycle = getMaxDutyCycleIfNight(config.nightModeConfig)
             val finalFanDutyCycle = maxFanDutyCycle?.let { fanDutyCycle.coerceAtMost(it) } ?: fanDutyCycle
             lastFanDutyCycle.set(finalFanDutyCycle)
-            call.respond(IndoorSensorResponse(delay?.inWholeMilliseconds?.toInt() ?: 5000, finalFanDutyCycle))
+            call.respond(IndoorSensorResponse(delay?.toInt() ?: 5000, finalFanDutyCycle))
         }
         get("/state") {
             val config = Database.loadConfig()
