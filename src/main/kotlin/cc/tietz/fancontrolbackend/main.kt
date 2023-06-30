@@ -135,8 +135,8 @@ fun Application.myApplicationModule() {
                     it.time.toString(),
                     it.temperature,
                     it.relativeHumidity,
-                    it.battery,
                     calculateAbsoluteHumidity(it.temperature, it.relativeHumidity),
+                    it.battery,
                 )
             }))
         }
