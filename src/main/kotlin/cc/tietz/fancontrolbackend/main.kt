@@ -117,6 +117,7 @@ fun Application.myApplicationModule() {
 
     routing {
         options("/{...}") {
+            call.response.headers.append("Access-Control-Allow-Headers", "Accept, Content-Type, Origin, Referrer")
             call.response.status(HttpStatusCode.NoContent)
         }
         get("/frontend/config") {
