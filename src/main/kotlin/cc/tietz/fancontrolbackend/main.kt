@@ -117,7 +117,7 @@ fun Application.myApplicationModule() {
 
     routing {
         options("/{...}") {
-            call.response.status(HttpStatusCode.OK)
+            call.response.status(HttpStatusCode.NoContent)
         }
         get("/frontend/config") {
             call.respond(Database.loadConfig())
