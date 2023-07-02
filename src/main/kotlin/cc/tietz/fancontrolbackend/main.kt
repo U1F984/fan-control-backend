@@ -6,6 +6,7 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -115,11 +116,17 @@ fun Application.myApplicationModule() {
         json()
     }
 
+    install(CORS) {
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowHeader(HttpHeaders.Accept)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Origin)
+        allowHeader(HttpHeaders.Referrer)
+        anyHost()
+    }
+
     routing {
-        options("/{...}") {
-            call.response.headers.append("Access-Control-Allow-Headers", "Accept, Content-Type, Origin, Referrer")
-            call.response.status(HttpStatusCode.NoContent)
-        }
         get("/frontend/config") {
             call.respond(Database.loadConfig())
         }
