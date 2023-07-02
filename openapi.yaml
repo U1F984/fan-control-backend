@@ -136,9 +136,6 @@ components:
         ignoreWindow:
           type: boolean
           description: Flag to ignore window state for fan control
-        darkMode:
-          type: boolean
-          description: Flag to ignore window state for fan control
         zipCode:
           type: string
           description: The ZIP code for weather display

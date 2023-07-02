@@ -15,7 +15,6 @@ data class NightModeConfig(
 @Serializable
 data class PersistentConfig(
     val zipCode: String,
-    val darkMode: Boolean,
     val pollingRateWeb: Long,
     val pollingRateSensorInside: Long?,
     val pollingRateSensorOutside: Long?,
@@ -26,7 +25,6 @@ data class PersistentConfig(
     companion object {
         val DEFAULT = PersistentConfig(
             "10117",
-            false,
             5.seconds.toLong(DurationUnit.MILLISECONDS),
             5.seconds.toLong(DurationUnit.MILLISECONDS),
             5.minutes.toLong(DurationUnit.MILLISECONDS),

@@ -8,6 +8,7 @@ import java.time.Instant
 
 object WeatherApi {
 
+    private var cachedZipCode: String = "10117"
     private var weatherResponseCached: WeatherResponse? = null
     private var lastFetch: Instant? = null
 
@@ -36,7 +37,8 @@ object WeatherApi {
 
     suspend fun read(): WeatherResponse? {
         val cached = weatherResponseCached
-        if (cached != null && lastFetch?.let { Duration.between(it, Instant.now()) < Duration.ofMinutes(10) } == true) {
+        val zipCode = Database.loadConfig().zipCode
+        if (cached != null && cachedZipCode == zipCode && lastFetch?.let { Duration.between(it, Instant.now()) < Duration.ofMinutes(10) } == true) {
             return cached
         }
         lastFetch = Instant.now()
