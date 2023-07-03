@@ -119,11 +119,12 @@ fun Application.myApplicationModule() {
     install(CORS) {
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Options)
         allowHeader(HttpHeaders.Accept)
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Origin)
         allowHeader(HttpHeaders.Referrer)
-        anyHost()
+        allowHost("https://iot.ecetin.dev")
     }
 
     routing {
