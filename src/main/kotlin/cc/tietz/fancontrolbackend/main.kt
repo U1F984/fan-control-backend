@@ -124,7 +124,7 @@ fun Application.myApplicationModule() {
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Origin)
         allowHeader(HttpHeaders.Referrer)
-        allowHost("https://iot.ecetin.dev")
+        allowHost("ecetin.dev", schemes = listOf("https"), subDomains = listOf("iot"))
     }
 
     routing {
